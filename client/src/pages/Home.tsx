@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { trpc } from "@/lib/trpc";
 import { Loader2, AlertTriangle, Activity, Shield, TrendingUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 /**
@@ -16,20 +16,45 @@ export default function Home() {
   const { user, loading: authLoading } = useAuth();
   const [selectedTab, setSelectedTab] = useState("overview");
 
-  // استعلامات البيانات
-  const statisticsSummary = trpc.statistics.summary.useQuery();
-  const threatsList = trpc.threats.list.useQuery({ limit: 10 });
-  const alertsList = trpc.alerts.list.useQuery({ limit: 10 });
-  const detectionStats = trpc.detection.stats.useQuery();
-  const dosDetection = trpc.detection.detectDos.useQuery();
-  const portScanDetection = trpc.detection.detectPortScan.useQuery();
-  const bruteForceDetection = trpc.detection.detectBruteForce.useQuery();
+  // استعلامات البيانات - بدون enabled للحصول على البيانات مباشرة
+  const statisticsSummary = trpc.statistics.summary.useQuery(undefined, {
+    staleTime: 30000,
+  });
+  const threatsList = trpc.threats.list.useQuery({ limit: 10 }, {
+    staleTime: 30000,
+  });
+  const alertsList = trpc.alerts.list.useQuery({ limit: 10 }, {
+    staleTime: 30000,
+  });
+  const detectionStats = trpc.detection.stats.useQuery(undefined, {
+    staleTime: 30000,
+  });
+  const dosDetection = trpc.detection.detectDos.useQuery(undefined, {
+    staleTime: 30000,
+  });
+  const portScanDetection = trpc.detection.detectPortScan.useQuery(undefined, {
+    staleTime: 30000,
+  });
+  const bruteForceDetection = trpc.detection.detectBruteForce.useQuery(undefined, {
+    staleTime: 30000,
+  });
 
   // إجراءات الاختبار
   const generatePackets = trpc.testing.generatePackets.useMutation();
   const generateSQLInjection = trpc.testing.generateSQLInjection.useMutation();
   const generateXSS = trpc.testing.generateXSS.useMutation();
   const generateDoS = trpc.testing.generateDoS.useMutation();
+
+  // حفظ البيانات في useMemo لتجنب re-renders غير ضرورية
+  const threatData = useMemo(
+    () => threatsList.data?.threats || [],
+    [threatsList.data?.threats]
+  );
+
+  const alertData = useMemo(
+    () => alertsList.data?.alerts || [],
+    [alertsList.data?.alerts]
+  );
 
   if (authLoading) {
     return (
@@ -265,9 +290,9 @@ export default function Home() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="animate-spin" />
                   </div>
-                ) : threatsList.data?.threats && threatsList.data.threats.length > 0 ? (
+                ) : threatData && threatData.length > 0 ? (
                   <div className="space-y-3">
-                    {threatsList.data.threats.map((threat: any) => (
+                    {threatData.map((threat: any) => (
                       <div
                         key={threat.id}
                         className="p-3 border rounded-lg hover:bg-muted/50 transition"
@@ -324,9 +349,9 @@ export default function Home() {
                   <div className="flex justify-center py-8">
                     <Loader2 className="animate-spin" />
                   </div>
-                ) : alertsList.data?.alerts && alertsList.data.alerts.length > 0 ? (
+                ) : alertData && alertData.length > 0 ? (
                   <div className="space-y-3">
-                    {alertsList.data.alerts.map((alert: any) => (
+                    {alertData.map((alert: any) => (
                       <div
                         key={alert.id}
                         className="p-3 border rounded-lg hover:bg-muted/50 transition"

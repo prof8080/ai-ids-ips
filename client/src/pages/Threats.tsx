@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { Loader2, AlertTriangle, Filter } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 
 /**
@@ -18,15 +18,9 @@ export default function Threats() {
   const [filterSeverity, setFilterSeverity] = useState<string>("");
 
   // استعلامات البيانات
-  const threatsList = trpc.threats.list.useQuery({ limit: 100 });
-  const threatsByType = trpc.threats.getByType.useQuery(
-    { threatType: filterType },
-    { enabled: !!filterType }
-  );
-  const threatsBySeverity = trpc.threats.getBySeverity.useQuery(
-    { severity: filterSeverity },
-    { enabled: !!filterSeverity }
-  );
+  const threatsList = trpc.threats.list.useQuery({ limit: 100 }, {
+    staleTime: 30000,
+  });
 
   // إجراء تحديث الحالة
   const updateStatus = trpc.threats.updateStatus.useMutation({
@@ -34,6 +28,21 @@ export default function Threats() {
       threatsList.refetch();
     },
   });
+
+  // حفظ البيانات المفلترة في useMemo
+  const displayThreats = useMemo(() => {
+    let threats = threatsList.data?.threats || [];
+
+    if (filterType) {
+      threats = threats.filter((t: any) => t.threatType === filterType);
+    }
+
+    if (filterSeverity) {
+      threats = threats.filter((t: any) => t.severity === filterSeverity);
+    }
+
+    return threats;
+  }, [threatsList.data?.threats, filterType, filterSeverity]);
 
   if (authLoading) {
     return (
@@ -45,15 +54,6 @@ export default function Threats() {
 
   if (!user) {
     return null;
-  }
-
-  // اختيار البيانات المناسبة بناءً على الفلاتر
-  let displayThreats = threatsList.data?.threats || [];
-  if (filterType && threatsByType.data) {
-    displayThreats = threatsByType.data;
-  }
-  if (filterSeverity && threatsBySeverity.data) {
-    displayThreats = threatsBySeverity.data;
   }
 
   const getSeverityColor = (severity: string) => {
